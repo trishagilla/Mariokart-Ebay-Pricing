@@ -1,0 +1,212 @@
+---
+title: | 
+ | Data Visualization Project 1
+ | Infographic
+subtitle: |
+ | [RACING FOR THE BEST DEAL: MARIOKART PRICES ON EBAY]
+author: | 
+ | [Trisha Gilla]
+ | Northeastern University
+ | INSH 5302: Information Design and Visual Analytics
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    code_download: true
+    fig_caption: yes
+    df_print: kable
+    theme: lumen
+    toc: yes
+    toc_float:
+      collapsed: false
+---
+# Introduction
+
+> What factors drive the final price of Mario Kart games sold on eBay?
+
+This infographic was designed to display differences in final sale prices for the Nintendo game Mario Kart on eBay, focusing on how product condition (new vs. used) and shipping options affect what buyers pay. The infographic incorporates the use of a violin and boxplot combination to show the spread and average of final prices between new and used games. In this graphic, we can clearly see that new copies of Mario Kart tend to sell for higher prices on average, while used copies have a lower median and wider variation. The violin shape was chosen because it highlights the full distribution of prices while the overlaid boxplot makes it easy to spot the median and quartiles.
+
+Additionally, the infographic uses a bar chart to visualize how different shipping methods (such as Priority, Standard, Media, First Class, etc.) relate to the average total price of the auction. This makes it easy to compare which shipping options are linked to higher or lower final prices, showing, for example, that parcel shipping method often command slightly higher total prices. Clear color coding was used to distinguish shipping categories, and the design emphasizes readability while keeping the focus on how condition and shipping influence auction outcomes.
+
+## Data
+### Load Libraries and Packages
+
+```{r, message=FALSE, warning=FALSE}
+library(moderndive)
+library(ggplot2)
+library(dplyr)
+library(mosaic)
+```
+
+### Description of data
+
+This dataset contains information from eBay auctions for the Nintendo Wii game Mario Kart. Each record includes the item’s condition (new or used), starting price, final sale price (including shipping), shipping cost and method, number of bids, seller rating, and other listing details. I chose this dataset because it offers clear, real-world auction data that allows me to explore how factors such as product condition and shipping options influence final sale prices which are insights that can be effectively communicated through data visualization.
+
+> R Package: moderndive()
+
+> Data set: mario_kart_auction
+
+### Load and Clean Data
+
+```{r, message=FALSE, warning=FALSE}
+# Load Data
+mario_data = moderndive::mario_kart_auction
+attach(mario_data)
+
+# Select columns/ variables
+mario_data = mario_data %>%
+  select(id, duration, n_bids, cond, start_pr, ship_pr, total_pr,
+         ship_sp, seller_rate, stock_photo, wheels, title)
+
+# Remove any null values
+mario_data = mario_data %>%
+  na.omit()
+```
+
+### Preview Data
+
+```{r, message=FALSE, warning=FALSE}
+head(mario_data, 10)
+```
+
+### Variables
+
+```{r, message = FALSE, warning = FALSE}
+names(mario_data)
+```
+
+The variables featured in this data visualization project are:
+
+1. `id` - **Categorical** identifier. Unique eBay listing ID used only to label each record (not a measurement).
+2. `duration` - **Quantitative** (days). Length of time the auction was active until closing.
+3. `n_bids` - **Quantitative** (count). Total number of bids placed on the listing.
+4. `cond` - **Categorical** (nominal). Item condition, typically "new" or "used".
+5. `start_pr` - **Quantitative** (USD). Seller’s starting auction price.
+6. `ship_pr` - **Quantitative** (USD). Shipping cost charged by the seller.
+7. `total_pr` - **Quantitative** (USD). Final sale price including shipping.
+8. `ship_sp` - **Categorical** (nominal). Shipping method/speed (e.g., "standard", "firstClass", "priority", "upsGround", "media", "parcel", "other").
+9. `seller_rate` - **Quantitative** (non-negative integer). Seller’s feedback score/rating on eBay.
+10. `stock_photo` - **Categorical** (binary). Whether a stock photo was used ("yes"/"no").
+11. `wheels` - **Quantitative** (discrete count). Number of Wii steering wheels included (0, 1, 2, 3, 4, etc.).
+12. `title` - **Categorical** (text). The listing’s title as written by the seller.
+
+* * *
+
+# Data Analysis
+
+## Required Analysis
+
+### Chart/Graph 
+
+```{r, message = FALSE, warning = FALSE}
+ggplot(mario_data, aes(x = cond, y = total_pr, fill = cond)) +
+  geom_violin(trim = FALSE, color = "gray20") +
+  geom_boxplot(width = 0.08, outlier.shape = NA, color = "white") +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
+  scale_fill_manual(values = c("new" = "darkred", "used" = "darkgreen")) +
+  labs(
+    title = "Mario Kart Wii: Final Sale Price by Condition",
+    x = "Condition",
+    y = "Total Price (USD)"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    axis.line = element_line(colour = "black", size = 1),
+    panel.background = element_rect(fill = "white", colour = "white"),
+    panel.grid.major = element_line(size = 0.5, linetype = "solid", colour = "black"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+### Summary Statistics
+
+```{r, message = FALSE, warning = FALSE}
+# Overall distribution of final sale prices (min, max, quartiles, mean, sd)
+favstats(~ total_pr, data = mario_data)
+```
+
+```{r, message = FALSE, warning = FALSE}
+# Compare sale prices for NEW vs USED games (see if new sells higher on average)
+favstats(total_pr ~ cond, data = mario_data)
+```
+
+```{r, message = FALSE, warning = FALSE}
+# Overview of shipping charges (how much sellers usually charge for shipping)
+favstats(~ ship_pr, data = mario_data)
+```
+
+```{r, message = FALSE, warning = FALSE}
+# Check how final sale prices differ by shipping method (standard, priority, media, etc.)
+favstats(total_pr ~ ship_sp, data = mario_data)
+```
+
+```{r, message = FALSE, warning = FALSE}
+# Calculate average total price per shipping method to prepare for the bar chart
+avg_ship <- mario_data %>%
+  group_by(ship_sp) %>%
+  summarise(mean_price = mean(total_pr, na.rm = TRUE)) %>%
+  arrange(desc(mean_price))
+```
+
+```{r, message = FALSE, warning = FALSE}
+# Calculate mean total price by condition to prepare for the bar chart
+avg_cond <- mario_data %>%
+  group_by(cond) %>%
+  summarise(mean_price = mean(total_pr, na.rm = TRUE))
+```
+
+## Additional Analyses
+
+```{r, message = FALSE, warning = FALSE}
+ggplot(avg_ship, aes(x = reorder(ship_sp, -mean_price), y = mean_price, fill = ship_sp)) +
+  geom_col(width = 0.6) +
+  scale_fill_brewer(palette = "Paired") +
+  labs(
+    title = "Average Final Price by Shipping Method",
+    x = "Shipping Method",
+    y = "Average Total Price (USD)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+```{r, message = FALSE, warning = FALSE}
+ggplot(avg_cond, aes(x = cond, y = mean_price, fill = cond)) +
+  geom_col(width = 0.6) +
+  scale_fill_manual(values = c("new" = "#377EB8", "used" = "#E41A1C")) + 
+  labs(
+    title = "Average Final Sale Price by Condition",
+    x = "Condition",
+    y = "Average Total Price (USD)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold")
+  )
+```
+
+* * *
+
+# Infographic
+<div style="position: relative; width: 100%; height: 0; padding-top: 225.0000%;
+ padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden;
+ border-radius: 8px; will-change: transform;">
+  <iframe loading="lazy" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0;margin: 0;"
+    src="https://www.canva.com/design/DAG0l5ajavs/iAzj6VqDKHAb_LzdSp_WzQ/view?embed" allowfullscreen="allowfullscreen" allow="fullscreen" data-external="1">
+  </iframe>
+</div>
+<a href="https:&#x2F;&#x2F;www.canva.com&#x2F;design&#x2F;DAG0l5ajavs&#x2F;iAzj6VqDKHAb_LzdSp_WzQ&#x2F;view?utm_content=DAG0l5ajavs&amp;utm_campaign=designshare&amp;utm_medium=embeds&amp;utm_source=link" target="_blank" rel="noopener">Racing for the Best Deal: Mario Kart Wii Prices on eBay</a> by trisha gilla
+
+URL Link to Canva Site: [Trisha Gilla - Data Viz Project 1] (https://www.canva.com/design/DAG0l5ajavs/wRUXGXrWLkfxUBzC39CIoQ/edit)
+
+* * *
+
+# References
+
+1. https://www.sthda.com/english/wiki/ggplot2-violin-plot-quick-start-guide-r-software-and-data-visualization?title=ggplot2-violin-plot-quick-start-guide-r-software-and-data-visualization
+2. https://venngage.com/blog/what-is-an-infographic/
+3. https://cicerocq.wordpress.com/wp-content/uploads/2020/03/gohil-a.-r-data-visualization-cookbook-.pdf
+
+* * *
